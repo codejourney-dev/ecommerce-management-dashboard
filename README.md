@@ -37,7 +37,7 @@ ecommerce-management-dashboard/
 - [x] Phase 05 — Backend & ORM Setup
 - [x] Phase 06 — Prisma Schema Development
 - [x] Phase 07 — Database Migration & Validation
-- [ ] Phase 08 — Authentication & Authorization
+- [x] Phase 08 — Authentication & Authorization
 - [ ] Phase 09 — Product & Inventory Management
 - [ ] Phase 10 — Order & Payment Management
 - [ ] Phase 11 — Shipping & Returns Management
