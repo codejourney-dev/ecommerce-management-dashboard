@@ -174,3 +174,7 @@ CHECK (
   AND default_tax_rate <= 100
   AND low_stock_threshold >= 0
 );
+
+CREATE UNIQUE INDEX "admin_refresh_tokens_one_unused_per_session"
+ON "admin_refresh_tokens" ("session_id")
+WHERE "used_at" IS NULL;

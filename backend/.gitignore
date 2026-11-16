@@ -5,7 +5,7 @@ dist/
 generated/
 # Keep environment variables out of version control
 .env
-
+.env.test
 /generated/prisma
 
 # Environment variables and secrets
