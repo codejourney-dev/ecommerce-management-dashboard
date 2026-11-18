@@ -79,7 +79,23 @@ const permissions = [
     name: "categories.delete",
     description: "Delete categories",
   },
-
+  // Brands
+  {
+    name: "brands.view",
+    description: "View brands",
+  },
+  {
+    name: "brands.create",
+    description: "Create brands",
+  },
+  {
+    name: "brands.update",
+    description: "Update brands",
+  },
+  {
+    name: "brands.delete",
+    description: "Delete brands",
+  },
   // Orders
   {
     name: "orders.view",
