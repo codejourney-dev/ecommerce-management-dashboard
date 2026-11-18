@@ -343,7 +343,6 @@ model ProductVariant {
   productId          String   @map("product_id") @db.Uuid
   sku                String   @unique @db.VarChar(100)
   title              String   @db.VarChar(150)
-  // attributes         Json     @db.JsonB //product_options, product_option_values, variant_option_values
   priceRial          BigInt   @map("price_rial") @db.BigInt
   compareAtPriceRial BigInt?  @map("compare_at_price_rial") @db.BigInt
   costPriceRial      BigInt?  @map("cost_price_rial") @db.BigInt

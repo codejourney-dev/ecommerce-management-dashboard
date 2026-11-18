@@ -13,7 +13,9 @@ import {
     verifyPreAuthCsrf,
     verifySessionCsrf,
 } from "../middlewares/csrf.middleware.js";
-import { authenticateAdmin } from "../middlewares/authenticate.middleware.js";
+import { 
+    authenticateAdmin 
+} from "../middlewares/authenticate.middleware.js";
 
 const router = Router();
 //Retrieve CSRF Token
