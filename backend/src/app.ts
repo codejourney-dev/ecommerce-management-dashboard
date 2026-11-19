@@ -10,6 +10,12 @@ import attributeRoutes from "./routes/attribute.routes.js";
 import attributeOptionRoutes from "./routes/attribute-option.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import variantRoutes from "./routes/variant.routes.js";
+import productImageRoutes from "./routes/product-image.routes.js";
+
+import {
+    PRODUCT_IMAGE_PUBLIC_PREFIX,
+    PRODUCT_IMAGE_STORAGE_ROOT,
+} from "./utils/storage/image-storage.js";
 
 const app = express();
 
@@ -38,6 +44,15 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(
+    PRODUCT_IMAGE_PUBLIC_PREFIX,
+    express.static(PRODUCT_IMAGE_STORAGE_ROOT, {
+        dotfiles: "deny",
+        index: false,
+        immutable: true,
+        maxAge: "7d",
+    }),
+)
 
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
@@ -46,8 +61,10 @@ app.use("/api/attributes", attributeRoutes);
 app.use("/api/attributes/:attributeId/options", attributeOptionRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/products/:productId/variants", variantRoutes);
+app.use("/api/products/:productId/images", productImageRoutes);
 
-app.get("/", (req, res) => {
+
+app.get("/", (_req, res) => {
     res.status(200).json({
         message: "E-Commerce Dashboard API is running!",
         status: "success",
