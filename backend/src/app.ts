@@ -8,6 +8,7 @@ import categoryRoutes from "./routes/category.routes.js";
 import brandRoutes from "./routes/brand.routes.js";
 import attributeRoutes from "./routes/attribute.routes.js";
 import attributeOptionRoutes from "./routes/attribute-option.routes.js";
+import productRoutes from "./routes/product.routes.js";
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/brands", brandRoutes);
 app.use("/api/attributes", attributeRoutes);
 app.use("/api/attributes/:attributeId/options", attributeOptionRoutes);
+app.use("/api/products", productRoutes);
 
 app.get("/", (req, res) => {
     res.status(200).json({
