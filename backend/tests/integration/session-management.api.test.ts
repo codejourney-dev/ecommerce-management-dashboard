@@ -1,4 +1,5 @@
-
+import { config } from "dotenv";
+config({ path: ".env.test" });
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import request from "supertest";

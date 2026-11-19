@@ -96,6 +96,40 @@ const permissions = [
     name: "brands.delete",
     description: "Delete brands",
   },
+  // Attribute Options
+  {
+    name: "attributes.options.view",
+    description: "View attribute options",
+  },
+  {
+    name: "attributes.options.create",
+    description: "Create attribute options",
+  },
+  {
+    name: "attributes.options.update",
+    description: "Update attribute options",
+  },
+  {
+    name: "attributes.options.delete",
+    description: "Delete attribute options",
+  },
+  // Category Attributes
+  {
+    name: "categories.attributes.view",
+    description: "View category attributes",
+  },
+  {
+    name: "categories.attributes.create",
+    description: "Assign attributes to categories",
+  },
+  {
+    name: "categories.attributes.update",
+    description: "Update category attribute assignments",
+  },
+  {
+    name: "categories.attributes.delete",
+    description: "Remove attributes from categories",
+  },
   // Orders
   {
     name: "orders.view",

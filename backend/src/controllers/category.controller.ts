@@ -1,4 +1,5 @@
 import type { Request, RequestHandler } from "express";
+import { isUuid } from "../utils/validation/uuid.js";
 import {
     CategoryServiceError,
     createCategory,
@@ -38,14 +39,14 @@ function isObject(value: unknown): value is Record<string, unknown> {
     );
 }
 
-function isUuid(value: unknown): value is string {
-    return (
-        typeof value === "string" &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-            value
-        )
-    );
-}
+// function isUuid(value: unknown): value is string {
+//     return (
+//         typeof value === "string" &&
+//         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+//             value
+//         )
+//     );
+// }
 
 function validateCategoryId(id: unknown): string {
     if (

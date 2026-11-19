@@ -1,6 +1,4 @@
-
 import { Router } from "express";
-
 import {
     createCategoryController,
     listCategoriesController,
@@ -12,18 +10,19 @@ import {
     getCategoryDeletePreviewController,
     deleteCategoryController,
 } from "../controllers/category.controller.js";
-
 import {
     authenticateAdmin,
 } from "../middlewares/authenticate.middleware.js";
-
 import {
     authorize,
 } from "../middlewares/authorize.middleware.js";
-
 import {
     verifySessionCsrf,
 } from "../middlewares/csrf.middleware.js";
+import {
+    createCategoryAttributeController,
+    updateCategoryAttributeRequiredController,
+} from "../controllers/category-attribute.controller.js";
 
 const router = Router();
 
@@ -100,6 +99,30 @@ router.patch(
     verifySessionCsrf,
     authorize("categories.update"),
     updateCategoryStatusController
+);
+
+// -----------------------------------------------------------------------------
+// Category Attributes
+// -----------------------------------------------------------------------------
+
+// POST /api/categories/:id/attributes
+// Assign an attribute to a category as optional.
+router.post(
+    "/:id/attributes",
+    authenticateAdmin,
+    verifySessionCsrf,
+    authorize("categories.attributes.create"),
+    createCategoryAttributeController
+);
+
+// PATCH /api/categories/:id/attributes/:categoryAttributeId/required
+// Change required status after the service validates existing values.
+router.patch(
+    "/:id/attributes/:categoryAttributeId/required",
+    authenticateAdmin,
+    verifySessionCsrf,
+    authorize("categories.attributes.update"),
+    updateCategoryAttributeRequiredController
 );
 
 // -----------------------------------------------------------------------------
