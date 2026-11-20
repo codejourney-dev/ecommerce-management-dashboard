@@ -12,6 +12,7 @@ import productRoutes from "./routes/product.routes.js";
 import variantRoutes from "./routes/variant.routes.js";
 import productImageRoutes from "./routes/product-image.routes.js";
 import warehouseRoutes from "./routes/warehouse.routes.js";
+import inventoryRoutes from "./routes/inventory.routes.js";
 
 import {
     PRODUCT_IMAGE_PUBLIC_PREFIX,
@@ -64,6 +65,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/products/:productId/variants", variantRoutes);
 app.use("/api/products/:productId/images", productImageRoutes);
 app.use("/api/warehouses", warehouseRoutes);
+app.use("/api/inventory", inventoryRoutes);
 
 
 app.get("/", (_req, res) => {
