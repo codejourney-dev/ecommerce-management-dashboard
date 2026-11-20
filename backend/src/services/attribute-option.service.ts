@@ -335,14 +335,21 @@ export async function reorderAttributeOptions(
                     );
                 }
 
-                await Promise.all(
-                    optionIds.map((id, index) =>
-                        tx.attributeOption.update({
-                            where: { id },
-                            data: { position: index },
-                        })
-                    )
-                );
+                for (const [index, id] of optionIds.entries()) {
+                    await tx.attributeOption.update({
+                        where: { id },
+                        data: { position: index },
+                    });
+                }
+
+                // await Promise.all(
+                //     optionIds.map((id, index) =>
+                //         tx.attributeOption.update({
+                //             where: { id },
+                //             data: { position: index },
+                //         })
+                //     )
+                // );
 
                 return tx.attributeOption.findMany({
                     where: { attributeId },
