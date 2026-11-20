@@ -11,6 +11,7 @@ import attributeOptionRoutes from "./routes/attribute-option.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import variantRoutes from "./routes/variant.routes.js";
 import productImageRoutes from "./routes/product-image.routes.js";
+import warehouseRoutes from "./routes/warehouse.routes.js";
 
 import {
     PRODUCT_IMAGE_PUBLIC_PREFIX,
@@ -62,6 +63,7 @@ app.use("/api/attributes/:attributeId/options", attributeOptionRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/products/:productId/variants", variantRoutes);
 app.use("/api/products/:productId/images", productImageRoutes);
+app.use("/api/warehouses", warehouseRoutes);
 
 
 app.get("/", (_req, res) => {
