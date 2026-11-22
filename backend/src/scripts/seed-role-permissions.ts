@@ -18,6 +18,7 @@ const rolePermissions: Record<string, string[]> = {
 
     "orders.view",
     "orders.update",
+    "orders.create",
 
     "payments.view",
     "payments.manage",
@@ -59,6 +60,7 @@ const rolePermissions: Record<string, string[]> = {
 
     "orders.view",
     "orders.update",
+    "orders.create",
 
     "payments.view",
     "payments.manage",

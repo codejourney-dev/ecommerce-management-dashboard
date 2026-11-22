@@ -163,18 +163,13 @@ CHECK (
 ALTER TABLE coupons
 ADD CONSTRAINT coupons_limits_check
 CHECK (
-    minimum_order_amount_rial >= 0
+    minimum_eligible_amount_rial >= 0
     AND (maximum_discount_rial IS NULL OR maximum_discount_rial > 0)
     AND (usage_limit IS NULL OR usage_limit > 0)
     AND usage_per_customer >= 1
     AND expires_at > starts_at
 );
-
--- Coupon redemption and order amounts cannot be negative.
-ALTER TABLE coupon_redemptions
-ADD CONSTRAINT coupon_redemptions_amount_check
-CHECK (discount_amount_rial >= 0);
-
+-- Control of financial amounts
 ALTER TABLE orders
 ADD CONSTRAINT orders_amounts_check
 CHECK (
@@ -734,3 +729,200 @@ EXECUTE FUNCTION check_multi_select_child_changes();
 -- =========================================================
 -- End of custom constraints
 -- =========================================================
+
+-- =========================================================
+-- Start of custom constraints for Order & Payment Management
+-- =========================================================
+-- Matching the order source and delivery type
+ALTER TABLE orders
+ADD CONSTRAINT chk_orders_source_fulfillment
+CHECK (
+    (source = 'CUSTOMER' AND fulfillment_type = 'SHIP')
+    OR
+    (source = 'ADMIN' AND fulfillment_type = 'PICKUP')
+    OR
+    (source = 'POS' AND fulfillment_type = 'IN_STORE')
+);
+-- Requirement for the client to place a website order
+ALTER TABLE orders
+ADD CONSTRAINT chk_orders_customer_source
+CHECK (
+    source <> 'CUSTOMER'
+    OR customer_id IS NOT NULL
+);
+-- Admin is mandatory for ADMIN and POS orders.
+ALTER TABLE orders
+ADD CONSTRAINT chk_orders_admin_source
+CHECK (
+    source = 'CUSTOMER'
+    OR created_by_admin_id IS NOT NULL
+);
+-- Requirement of a shipping address for online orders
+ALTER TABLE orders
+ADD CONSTRAINT chk_orders_shipping_address
+CHECK (
+    fulfillment_type <> 'SHIP'
+    OR shipping_address_snapshot IS NOT NULL
+);
+
+
+-- A manual payment must have a recording admin
+ALTER TABLE payments
+ADD CONSTRAINT chk_payments_manual_recorder
+CHECK (
+    method = 'ONLINE'
+    OR recorded_by_admin_id IS NOT NULL
+);
+-- A successful manual payment must include a confirmation and a confirmation timestamp.
+ALTER TABLE payments
+ADD CONSTRAINT chk_payments_manual_confirmation
+CHECK (
+    method = 'ONLINE'
+    OR status <> 'SUCCEEDED'
+    OR (
+        confirmed_by_admin_id IS NOT NULL
+        AND confirmed_at IS NOT NULL
+        AND paid_at IS NOT NULL
+    )
+);
+-- 
+ALTER TABLE refunds
+ADD CONSTRAINT chk_refunds_processed_at
+CHECK (
+    status <> 'SUCCEEDED'
+    OR processed_at IS NOT NULL
+);
+--
+ALTER TABLE product_variants
+ADD CONSTRAINT product_variants_discount_config_check
+CHECK (
+    (
+        discount_type IS NULL
+        AND discount_percent IS NULL
+        AND discount_amount_rial IS NULL
+    )
+    OR
+    (
+        discount_type = 'PERCENTAGE'
+        AND discount_percent IS NOT NULL
+        AND discount_percent > 0
+        AND discount_percent <= 100
+        AND discount_amount_rial IS NULL
+    )
+    OR
+    (
+        discount_type = 'FIXED_AMOUNT'
+        AND discount_amount_rial IS NOT NULL
+        AND discount_amount_rial > 0
+        AND discount_percent IS NULL
+    )
+);
+--
+ALTER TABLE product_variants
+ADD CONSTRAINT product_variants_discount_dates_check
+CHECK (
+    (discount_starts_at IS NULL AND discount_ends_at IS NULL)
+    OR
+    (
+        discount_starts_at IS NOT NULL
+        AND discount_ends_at IS NOT NULL
+        AND discount_ends_at > discount_starts_at
+    )
+);
+--
+ALTER TABLE product_variants
+ADD CONSTRAINT product_variants_active_discount_check
+CHECK (
+    NOT is_discount_active
+    OR (
+        discount_type IS NOT NULL
+        AND discount_starts_at IS NOT NULL
+        AND discount_ends_at IS NOT NULL
+    )
+);
+--
+ALTER TABLE special_offers
+ADD CONSTRAINT special_offers_discount_config_check
+CHECK (
+    (
+        discount_type = 'PERCENTAGE'
+        AND discount_percent IS NOT NULL
+        AND discount_percent > 0
+        AND discount_percent <= 100
+        AND discount_amount_rial IS NULL
+    )
+    OR
+    (
+        discount_type = 'FIXED_AMOUNT'
+        AND discount_amount_rial IS NOT NULL
+        AND discount_amount_rial > 0
+        AND discount_percent IS NULL
+    )
+);
+--
+ALTER TABLE special_offers
+ADD CONSTRAINT special_offers_limits_check
+CHECK (
+    max_quantity_per_order > 0
+    AND max_quantity_per_customer > 0
+    AND ends_at > starts_at
+);
+--
+ALTER TABLE orders
+ADD CONSTRAINT orders_discount_breakdown_check
+CHECK (
+    subtotal_rial >= 0
+    AND item_discount_total_rial >= 0
+    AND coupon_discount_rial >= 0
+    AND discount_total_rial >= 0
+    AND discount_total_rial =
+        item_discount_total_rial + coupon_discount_rial
+    AND discount_total_rial <= subtotal_rial
+);
+-- Reconciling the final amount with the order components
+ALTER TABLE orders
+ADD CONSTRAINT orders_grand_total_check
+CHECK (
+    grand_total_rial =
+        subtotal_rial
+        - discount_total_rial
+        + shipping_cost_rial
+        + tax_total_rial
+);
+--
+ALTER TABLE order_items
+ADD CONSTRAINT order_items_discount_breakdown_check
+CHECK (
+    quantity > 0
+    AND unit_price_rial >= 0
+    AND discount_amount_rial >= 0
+    AND coupon_discount_amount_rial >= 0
+    AND discount_amount_rial + coupon_discount_amount_rial
+        <= unit_price_rial * quantity
+    AND total_price_rial =
+        unit_price_rial * quantity
+        - discount_amount_rial
+        - coupon_discount_amount_rial
+);
+-- Replace the legacy non-negative-only check with the stricter redemption rule.
+ALTER TABLE coupon_redemptions
+DROP CONSTRAINT IF EXISTS coupon_redemptions_amount_check;
+
+ALTER TABLE coupon_redemptions
+ADD CONSTRAINT coupon_redemptions_amount_check
+CHECK (
+    discount_amount_rial > 0
+    AND eligible_subtotal_rial > 0
+);
+
+-- Enable required PostgreSQL extension
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- Prevent overlapping active special offers for the same variant
+ALTER TABLE "special_offers"
+ADD CONSTRAINT "special_offers_no_overlapping_periods"
+EXCLUDE USING GIST (
+    "variant_id" WITH =,
+    tstzrange("starts_at", "ends_at", '[)') WITH &&
+)
+WHERE (is_active = TRUE);

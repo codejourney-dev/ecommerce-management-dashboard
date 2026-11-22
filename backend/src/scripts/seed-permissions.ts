@@ -7,7 +7,6 @@ const permissions = [
     name: "dashboard.view",
     description: "View the admin dashboard",
   },
-
   // Admins
   {
     name: "admins.view",
@@ -25,7 +24,6 @@ const permissions = [
     name: "admins.delete",
     description: "Delete admin users",
   },
-
   // Roles
   {
     name: "roles.view",
@@ -43,7 +41,6 @@ const permissions = [
     name: "roles.delete",
     description: "Delete roles",
   },
-
   // Products
   {
     name: "products.view",
@@ -139,7 +136,10 @@ const permissions = [
     name: "orders.update",
     description: "Update orders",
   },
-
+  {
+    name: "orders.create",
+    description: "Create new orders",
+  },
   // Payments
   {
     name: "payments.view",

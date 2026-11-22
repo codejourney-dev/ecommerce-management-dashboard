@@ -36,12 +36,17 @@ model AdminUser {
   updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt       DateTime?   @map("deleted_at") @db.Timestamptz(6)
 
-  adminUserRoles     AdminUserRole[]
-  otpChallenges      AdminOtpChallenge[]
-  sessions           AdminSession[]
-  auditLogs          AuditLog[]
-  orderHistory       OrderStatusHistory[]
-  inventoryMovements InventoryMovement[]
+  adminUserRoles      AdminUserRole[]
+  otpChallenges       AdminOtpChallenge[]
+  sessions            AdminSession[]
+  auditLogs           AuditLog[]
+  orderHistory        OrderStatusHistory[]
+  inventoryMovements  InventoryMovement[]
+  createdOrders       Order[]
+  recordedPayments    Payment[] @relation("PaymentRecordedBy")
+  confirmedPayments   Payment[] @relation("PaymentConfirmedBy")
+  createdRefunds      Refund[]  @relation("RefundCreatedBy")
+  processedRefunds    Refund[]  @relation("RefundProcessedBy")
 
   @@map("admin_users")
 }
@@ -338,18 +343,31 @@ model ProductCategory {
   @@map("product_categories")
 }
 
+enum ProductDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+
+  @@map("product_discount_type")
+}
+
 model ProductVariant {
-  id                 String   @id @default(uuid()) @db.Uuid
-  productId          String   @map("product_id") @db.Uuid
-  sku                String   @unique @db.VarChar(100)
-  title              String   @db.VarChar(150)
-  priceRial          BigInt   @map("price_rial") @db.BigInt
-  compareAtPriceRial BigInt?  @map("compare_at_price_rial") @db.BigInt
-  costPriceRial      BigInt?  @map("cost_price_rial") @db.BigInt
-  barcode            String?  @unique @db.VarChar(100)
-  isActive           Boolean  @default(true) @map("is_active") @db.Boolean
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                 String               @id @default(uuid()) @db.Uuid
+  productId          String               @map("product_id") @db.Uuid
+  sku                String               @unique @db.VarChar(100)
+  title              String               @db.VarChar(150)
+  priceRial          BigInt               @map("price_rial") @db.BigInt
+  compareAtPriceRial BigInt?              @map("compare_at_price_rial") @db.BigInt
+  costPriceRial      BigInt?              @map("cost_price_rial") @db.BigInt
+  discountType       ProductDiscountType? @map("discount_type")
+  discountPercent    Decimal?             @map("discount_percent") @db.Decimal(5, 2)
+  discountAmountRial BigInt?              @map("discount_amount_rial") @db.BigInt
+  discountStartsAt   DateTime?            @map("discount_starts_at") @db.Timestamptz(6)
+  discountEndsAt     DateTime?            @map("discount_ends_at") @db.Timestamptz(6)
+  isDiscountActive   Boolean              @default(false) @map("is_discount_active")
+  barcode            String?              @unique @db.VarChar(100)
+  isActive           Boolean              @default(true) @map("is_active") @db.Boolean
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   product            Product                 @relation(fields: [productId], references: [id], onDelete: Restrict)
   images             ProductImage[]
@@ -357,6 +375,7 @@ model ProductVariant {
   inventory          Inventory[]
   inventoryMovements InventoryMovement[]
   attributeValues    VariantAttributeValue[]
+  specialOffers      SpecialOffer[]
 
   @@unique([id, productId])
   @@map("product_variants")
@@ -572,51 +591,78 @@ enum OrderStatus {
 
   @@map("order_status")
 }
+enum OrderSource {
+  CUSTOMER
+  ADMIN
+  POS
+
+  @@map("order_source")
+}
+enum FulfillmentType {
+  SHIP
+  PICKUP
+  IN_STORE
+
+  @@map("fulfillment_type")
+}
 
 model Order {
-  id                      String      @id @default(uuid()) @db.Uuid
-  orderNumber             String      @unique @map("order_number") @db.VarChar(30)
-  customerId              String      @map("customer_id") @db.Uuid
-  status                  OrderStatus @default(PENDING)
-  subtotalRial            BigInt      @map("subtotal_rial") @db.BigInt
-  discountTotalRial       BigInt      @map("discount_total_rial") @db.BigInt
-  shippingCostRial        BigInt      @map("shipping_cost_rial") @db.BigInt
-  taxTotalRial            BigInt      @map("tax_total_rial") @db.BigInt
-  grandTotalRial          BigInt      @map("grand_total_rial") @db.BigInt
-  couponId                String?     @map("coupon_id") @db.Uuid
-  customerNote            String?     @map("customer_note") @db.Text
-  shippingAddressSnapshot Json        @map("shipping_address_snapshot") @db.JsonB
-  billingAddressSnapshot  Json        @map("billing_address_snapshot") @db.JsonB
-  placedAt                DateTime    @map("placed_at") @db.Timestamptz(6)
-  createdAt               DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                      String          @id @default(uuid()) @db.Uuid
+  orderNumber             String          @unique @map("order_number") @db.VarChar(30)
+  source                  OrderSource     @default(CUSTOMER)
+  fulfillmentType         FulfillmentType @default(SHIP) @map("fulfillment_type")
+  customerId              String?         @map("customer_id") @db.Uuid
+  createdByAdminId        String?         @map("created_by_admin_id") @db.Uuid
+  guestCustomerName       String?         @map("guest_customer_name") @db.VarChar(200)
+  guestCustomerPhone      String?         @map("guest_customer_phone") @db.VarChar(16)
+  status                  OrderStatus     @default(PENDING)
+  subtotalRial            BigInt          @map("subtotal_rial") @db.BigInt
+  discountTotalRial       BigInt          @map("discount_total_rial") @db.BigInt
+  itemDiscountTotalRial   BigInt          @default(0) @map("item_discount_total_rial") @db.BigInt
+  couponDiscountRial      BigInt          @default(0) @map("coupon_discount_rial") @db.BigInt
+  shippingCostRial        BigInt          @map("shipping_cost_rial") @db.BigInt
+  taxTotalRial            BigInt          @map("tax_total_rial") @db.BigInt
+  grandTotalRial          BigInt          @map("grand_total_rial") @db.BigInt
+  couponId                String?         @map("coupon_id") @db.Uuid
+  customerNote            String?         @map("customer_note") @db.Text
+  shippingAddressSnapshot Json?           @map("shipping_address_snapshot") @db.JsonB
+  billingAddressSnapshot  Json?           @map("billing_address_snapshot") @db.JsonB
+  placedAt                DateTime        @map("placed_at") @db.Timestamptz(6)
+  createdAt               DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  customer       Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  coupon         Coupon?              @relation(fields: [couponId], references: [id], onDelete: SetNull)
-  items          OrderItem[]
-  orderHistory   OrderStatusHistory[]
-  payments       Payment[]
-  shipments      Shipment[]
-  redemptions    CouponRedemption[]
-  returnRequests ReturnRequest[]
+  customer        Customer?            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdByAdmin  AdminUser?           @relation(fields: [createdByAdminId], references: [id], onDelete: Restrict)
+  coupon          Coupon?              @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  
+  items             OrderItem[]
+  orderHistory      OrderStatusHistory[]
+  payment           Payment?
+  shipments         Shipment[]
+  couponRedemption  CouponRedemption?
+  returnRequests    ReturnRequest[]
 
   @@index([customerId, createdAt])
+  @@index([createdByAdminId, createdAt])
   @@index([couponId])
   @@map("orders")
 }
 
 model OrderItem {
-  id                 String @id @default(uuid()) @db.Uuid
-  orderId            String @map("order_id") @db.Uuid
-  variantId          String @map("variant_id") @db.Uuid
-  productName        String @map("product_name") @db.VarChar(255)
-  variantTitle       String @map("variant_title") @db.VarChar(150)
-  sku                String @db.VarChar(100)
-  unitPriceRial      BigInt @map("unit_price_rial") @db.BigInt
-  quantity           Int    @db.Integer
-  discountAmountRial BigInt @map("discount_amount_rial") @db.BigInt
-  totalPriceRial     BigInt @map("total_price_rial") @db.BigInt
+  id                        String  @id @default(uuid()) @db.Uuid
+  orderId                   String  @map("order_id") @db.Uuid
+  variantId                 String  @map("variant_id") @db.Uuid
+  productName               String  @map("product_name") @db.VarChar(255)
+  variantTitle              String  @map("variant_title") @db.VarChar(150)
+  sku                       String  @db.VarChar(100)
+  unitPriceRial             BigInt  @map("unit_price_rial") @db.BigInt
+  quantity                  Int     @db.Integer
+  discountAmountRial        BigInt  @map("discount_amount_rial") @db.BigInt
+  couponDiscountAmountRial  BigInt  @default(0) @map("coupon_discount_amount_rial") @db.BigInt
+  specialOfferId            String? @map("special_offer_id") @db.Uuid
+  totalPriceRial            BigInt  @map("total_price_rial") @db.BigInt
 
+  specialOffer  SpecialOffer?  @relation(fields: [specialOfferId, variantId], references: [id, variantId], onDelete: Restrict)
   orders        Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
   variants      ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
   shipmentItems ShipmentItem[]
@@ -735,20 +781,40 @@ enum PaymentStatus {
   @@map("payment_status")
 }
 
-model Payment {
-  id         String        @id @default(uuid()) @db.Uuid
-  orderId    String        @map("order_id") @db.Uuid
-  amountRial BigInt        @map("amount_rial") @db.BigInt
-  status     PaymentStatus @default(PENDING)
-  paidAt     DateTime?     @map("paid_at") @db.Timestamptz(6)
-  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  POS
+  ONLINE
 
-  orders          Order            @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  paymentAttempts PaymentAttempt[]
+  @@map("payment_method")
+}
+
+model Payment {
+  id                  String        @id @default(uuid()) @db.Uuid
+  orderId             String        @unique @map("order_id") @db.Uuid
+  method              PaymentMethod @default(ONLINE)
+  amountRial          BigInt        @map("amount_rial") @db.BigInt
+  status              PaymentStatus @default(PENDING)
+  referenceCode       String?       @map("reference_code") @db.VarChar(150)
+  cardLastFour        String?       @map("card_last_four") @db.VarChar(4)
+  note                String?       @db.Text
+  recordedByAdminId   String?       @map("recorded_by_admin_id") @db.Uuid
+  confirmedByAdminId  String?       @map("confirmed_by_admin_id") @db.Uuid
+  confirmedAt         DateTime?     @map("confirmed_at") @db.Timestamptz(6)
+  paidAt              DateTime?     @map("paid_at") @db.Timestamptz(6)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  orders            Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  recordedByAdmin   AdminUser?  @relation("PaymentRecordedBy", fields: [recordedByAdminId], references: [id], onDelete: Restrict)
+  confirmedByAdmin  AdminUser?  @relation("PaymentConfirmedBy", fields: [confirmedByAdminId], references: [id], onDelete: Restrict)
+  
+  paymentAttempts   PaymentAttempt[]
+  refunds           Refund[]
+
 
   @@unique([id, orderId])
-  @@index([orderId])
   @@map("payments")
 }
 
@@ -829,18 +895,24 @@ model Refund {
   id               String       @id @default(uuid()) @db.Uuid
   paymentId        String       @map("payment_id") @db.Uuid
   orderId          String       @map("order_id") @db.Uuid
-  paymentAttemptId String       @map("payment_attempt_id") @db.Uuid
-  returnRequestId  String       @map("return_request_id") @db.Uuid
+  paymentAttemptId String?       @map("payment_attempt_id") @db.Uuid
+  returnRequestId  String?       @map("return_request_id") @db.Uuid
   amountRial       BigInt       @map("amount_rial") @db.BigInt
   reason           String       @db.Text
   status           RefundStatus @default(PENDING)
   transactionId    String?      @map("transaction_id") @db.VarChar(150)
+  createdByAdminId String?      @map("created_by_admin_id") @db.Uuid
+  processedByAdminId String?    @map("processed_by_admin_id") @db.Uuid
   processedAt      DateTime?    @map("processed_at") @db.Timestamptz(6)
   createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  paymentAttempt PaymentAttempt @relation(fields: [paymentAttemptId, paymentId, orderId], references: [id, paymentId, orderId], onDelete: Restrict)
-  returnRequest  ReturnRequest  @relation(fields: [returnRequestId, orderId], references: [id, orderId], onDelete: Restrict)
+  payment           Payment         @relation(fields: [paymentId, orderId], references: [id, orderId], onDelete: Restrict)
+  paymentAttempt    PaymentAttempt? @relation(fields: [paymentAttemptId, paymentId, orderId], references: [id, paymentId, orderId], onDelete: Restrict)
+  returnRequest     ReturnRequest?  @relation(fields: [returnRequestId, orderId], references: [id, orderId], onDelete: Restrict)
+  createdByAdmin    AdminUser?      @relation("RefundCreatedBy", fields: [createdByAdminId], references: [id], onDelete: Restrict)
+  processedByAdmin  AdminUser?      @relation("RefundProcessedBy", fields: [processedByAdminId], references: [id], onDelete: Restrict)
 
+  @@index([paymentId, orderId])
   @@index([paymentAttemptId, paymentId, orderId])
   @@index([returnRequestId, orderId])
   @@map("refunds")
@@ -896,6 +968,36 @@ model ShipmentItem {
 }
 
 //10.Promotions //کدهای تخفیف
+enum SpecialOfferDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+
+  @@map("special_offer_discount_type")
+}
+
+model SpecialOffer {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  variantId          String                  @map("variant_id") @db.Uuid
+  title              String                  @db.VarChar(150)
+  discountType       SpecialOfferDiscountType @map("discount_type")
+  discountPercent    Decimal?                @map("discount_percent") @db.Decimal(5, 2)
+  discountAmountRial BigInt?                 @map("discount_amount_rial") @db.BigInt
+  maxQuantityPerOrder    Int @map("max_quantity_per_order")
+  maxQuantityPerCustomer Int @map("max_quantity_per_customer")
+  startsAt           DateTime @map("starts_at") @db.Timestamptz(6)
+  endsAt             DateTime @map("ends_at") @db.Timestamptz(6)
+  isActive           Boolean  @default(false) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  variant            ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  orderItems         OrderItem[]
+
+  @@unique([id, variantId])
+  @@index([variantId, isActive, startsAt, endsAt])
+  @@map("special_offers")
+}
+
 enum CouponType {
   PERCENTAGE
   FIXED_AMOUNT
@@ -904,37 +1006,42 @@ enum CouponType {
 }
 
 model Coupon {
-  id                     String     @id @default(uuid()) @db.Uuid
-  code                   String     @unique @db.VarChar(50)
-  discountType           CouponType @map("discount_type")
-  discountPercent        Decimal?   @map("discount_percent") @db.Decimal(5, 2)
-  discountAmountRial     BigInt?    @map("discount_amount_rial") @db.BigInt
-  minimumOrderAmountRial BigInt     @map("minimum_order_amount_rial") @db.BigInt
-  maximumDiscountRial    BigInt?    @map("maximum_discount_rial") @db.BigInt
-  usageLimit             Int?       @map("usage_limit") @db.Integer
-  usagePerCustomer       Int        @map("usage_per_customer") @db.Integer
-  isActive               Boolean    @default(false) @map("is_active") @db.Boolean
-  startsAt               DateTime   @map("starts_at") @db.Timestamptz(6)
-  expiresAt              DateTime   @map("expires_at") @db.Timestamptz(6)
-  createdAt              DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                        String      @id @default(uuid()) @db.Uuid
+  code                      String      @unique @db.VarChar(50)
+  discountType              CouponType  @map("discount_type")
+  discountPercent           Decimal?    @map("discount_percent") @db.Decimal(5, 2)
+  discountAmountRial        BigInt?     @map("discount_amount_rial") @db.BigInt
+  minimumEligibleAmountRial BigInt      @map("minimum_eligible_amount_rial") @db.BigInt
+  maximumDiscountRial       BigInt?     @map("maximum_discount_rial") @db.BigInt
+  usageLimit                Int?        @map("usage_limit")
+  usagePerCustomer          Int         @map("usage_per_customer")
+  isActive                  Boolean     @default(false) @map("is_active")
+  startsAt                  DateTime    @map("starts_at") @db.Timestamptz(6)
+  expiresAt                 DateTime    @map("expires_at") @db.Timestamptz(6)
+  createdAt                 DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  orders      Order[]
-  redemptions CouponRedemption[]
+  orders                 Order[]
+  redemptions            CouponRedemption[]
 
   @@map("coupons")
 }
 
 model CouponRedemption {
-  id                 String   @id @default(uuid()) @db.Uuid
-  couponId           String   @map("coupon_id") @db.Uuid
-  customerId         String   @map("customer_id") @db.Uuid
-  orderId            String   @unique @map("order_id") @db.Uuid
-  discountAmountRial BigInt   @map("discount_amount_rial") @db.BigInt
-  redeemedAt         DateTime @map("redeemed_at") @db.Timestamptz(6)
+  id                      String      @id @default(uuid()) @db.Uuid
+  couponId                String      @map("coupon_id") @db.Uuid
+  customerId              String?     @map("customer_id") @db.Uuid
+  orderId                 String      @unique @map("order_id") @db.Uuid
+  discountAmountRial      BigInt      @map("discount_amount_rial") @db.BigInt
+  eligibleSubtotalRial    BigInt      @map("eligible_subtotal_rial") @db.BigInt
+  couponCodeSnapshot      String      @map("coupon_code_snapshot") @db.VarChar(50)
+  discountTypeSnapshot    CouponType  @map("discount_type_snapshot")
+  discountPercentSnapshot Decimal?    @map("discount_percent_snapshot") @db.Decimal(5, 2)
+  discountAmountSnapshot  BigInt?     @map("discount_amount_snapshot") @db.BigInt
+  redeemedAt              DateTime    @map("redeemed_at") @db.Timestamptz(6)
 
-  coupons   Coupon   @relation(fields: [couponId], references: [id], onDelete: Restrict)
-  customers Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  orders    Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  coupons   Coupon    @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  customers Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  orders    Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   @@index([couponId, customerId])
   @@map("coupon_redemptions")
