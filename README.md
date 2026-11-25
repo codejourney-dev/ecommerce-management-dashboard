@@ -85,8 +85,8 @@ ecommerce-management-dashboard/
 -   [x] Phase 09 --- Product & Inventory Management
 -   [ ] Phase 10 --- Order & Payment Management
     -   [x] 10.00 --- Architecture & Schema Audit
-    -   [ ] 10.01 --- Order Management
-    -   [ ] 10.02 --- Order Items & Pricing
+    -   [x] 10.01 --- Order Management
+    -   [x] 10.02 --- Order Items & Pricing
     -   [ ] 10.03 --- Order Status & History
     -   [ ] 10.04 --- Payment Provider Management
     -   [ ] 10.05 --- Payment Management
